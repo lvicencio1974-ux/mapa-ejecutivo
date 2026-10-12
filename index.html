@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mapa Ejecutivo</title>
+<!-- pwa:start -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f6f78">
+<meta name="description" content="Autoevaluación orientativa de atención, ánimo, sueño y memoria con informe referencial y plan de acción.">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mapa Ejecutivo">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<!-- pwa:end -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: expediente clínico de una columna; riel de pasos arriba, una hoja por instrumento, informe final como ficha imprimible */
+:root{
+  --bg:#f3f6f6; --paper:#ffffff; --ink:#15262b; --muted:#566a6f; --line:#d5dfe0;
+  --accent:#1f6f78; --accent-ink:#ffffff; --accent-soft:#e2eff0;
+  --warn:#a85a14; --warn-soft:#f8ecdf; --ok:#2b7a4b; --ok-soft:#e3f1e8; --crit:#b3261e; --crit-soft:#fbe7e5;
+  --display:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --body:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1719; --paper:#152125; --ink:#e3ecee; --muted:#9db0b4; --line:#2a3b40;
+  --accent:#5fb3bc; --accent-ink:#0b1416; --accent-soft:#1b3337;
+  --warn:#e3a05e; --warn-soft:#33261a; --ok:#6cc392; --ok-soft:#183026; --crit:#f08a80; --crit-soft:#3a1d1b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1719; --paper:#152125; --ink:#e3ecee; --muted:#9db0b4; --line:#2a3b40;
+  --accent:#5fb3bc; --accent-ink:#0b1416; --accent-soft:#1b3337;
+  --warn:#e3a05e; --warn-soft:#33261a; --ok:#6cc392; --ok-soft:#183026; --crit:#f08a80; --crit-soft:#3a1d1b; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6}
+.wrap{max-width:880px;margin:0 auto;padding-inline:16px;padding-block:24px 64px;display:grid;gap:20px}
+.sheet{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:clamp(18px,4vw,32px);min-width:0}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:clamp(1.7rem,4.5vw,2.4rem);font-weight:700}
+h2{font-size:1.35rem;font-weight:600;margin-bottom:12px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+h2 .sec{font-family:var(--mono);font-size:.78rem;color:var(--accent);font-weight:500;letter-spacing:.04em}
+h3{font-size:1.06rem;font-weight:600;margin-bottom:6px}
+p{margin:0 0 10px;max-width:70ch}
+ul,ol{margin:0;padding-left:20px;display:grid;gap:6px;max-width:70ch}
+a{color:var(--accent)}
+.eyebrow{font-family:var(--mono);font-size:.74rem;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.muted{color:var(--muted)}
+.small{font-size:.88rem}
+.notice{background:var(--warn-soft);border-left:3px solid var(--warn);padding:10px 14px;font-size:.93rem;border-radius:0 4px 4px 0}
+.notice.crit{background:var(--crit-soft);border-color:var(--crit)}
+.notice.info{background:var(--accent-soft);border-color:var(--accent)}
+.notice p:last-child{margin-bottom:0}
+
+/* riel de pasos */
+.rail{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.rail button{flex:0 0 auto;font-family:var(--mono);font-size:.72rem;letter-spacing:.04em;border:1px solid var(--line);background:var(--paper);color:var(--muted);border-radius:999px;padding:5px 11px;cursor:pointer}
+.rail button[aria-current="step"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.rail button.done{color:var(--ok);border-color:var(--ok)}
+.rail button:disabled{opacity:.45;cursor:not-allowed}
+.progress{height:4px;background:var(--accent-soft);border-radius:2px;overflow:hidden}
+.progress>div{height:100%;background:var(--accent);transition:width .3s}
+
+/* formularios */
+.field{display:grid;gap:4px;min-width:0}
+.field label,.qtext{font-weight:500}
+input[type=text],input[type=number],textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:9px 11px;width:100%}
+textarea{min-height:120px;resize:vertical}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,.opt input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px 20px}
+.grid2>*{min-width:0}
+.q{border:0;margin:0;padding:14px 0;border-top:1px solid var(--line);display:grid;gap:8px;min-width:0}
+.q:first-of-type{border-top:0}
+.q legend{padding:0;display:flex;gap:10px;font-weight:500}
+.q legend .n{font-family:var(--mono);font-size:.8rem;color:var(--accent);min-width:1.6em;padding-top:2px}
+.q.missing legend{color:var(--crit)}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{position:relative}
+.opt input{position:absolute;opacity:0;width:1px;height:1px}
+.opt span{display:inline-block;border:1px solid var(--line);border-radius:4px;padding:6px 11px;font-size:.9rem;cursor:pointer;background:var(--paper);user-select:none}
+.opt input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.opt span:hover{border-color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+
+.btns{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{font:inherit;font-weight:600;font-size:.95rem;border-radius:4px;padding:10px 18px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.quiet{background:transparent;border-color:var(--line);color:var(--muted);font-weight:500}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.spacer{flex:1}
+
+/* tareas cognitivas */
+.words{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.words div{font-family:var(--display);font-size:1.3rem;font-weight:600;text-align:center;padding:14px 8px;border:1px solid var(--line);border-radius:4px;background:var(--accent-soft);letter-spacing:.04em}
+.timer{font-family:var(--mono);font-size:2.4rem;font-variant-numeric:tabular-nums;color:var(--accent);line-height:1}
+
+/* informe */
+.ficha{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 22px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.ficha dt{font-family:var(--mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.ficha dd{margin:0;font-weight:500}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.tile{border:1px solid var(--line);border-radius:4px;padding:10px 12px;display:grid;gap:2px;min-width:0}
+.tile .k{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.tile .v{font-weight:600}
+.tile.alto{border-left:4px solid var(--warn)} .tile.crit{border-left:4px solid var(--crit)} .tile.ok{border-left:4px solid var(--ok)} .tile.med{border-left:4px solid var(--accent)}
+.tablebox{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem;min-width:560px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:500}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;font-family:var(--mono);font-size:.72rem;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill.alto{background:var(--warn-soft);color:var(--warn)} .pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.med{background:var(--accent-soft);color:var(--accent)} .pill.crit{background:var(--crit-soft);color:var(--crit)}
+.bars{display:grid;gap:14px}
+.bar{display:grid;gap:4px}
+.bar-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:.95rem}
+.bar-head b{font-weight:600}
+.bar-head span{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--muted);font-size:.84rem}
+.track{height:10px;background:var(--accent-soft);border-radius:2px;position:relative;overflow:hidden}
+.fill{height:100%;border-radius:2px;background:var(--accent)}
+.fill.alto{background:var(--warn)} .fill.ok{background:var(--ok)} .fill.crit{background:var(--crit)}
+.bar small{color:var(--muted);font-size:.84rem}
+.hyp{display:grid;gap:12px}
+.hyp article{border:1px solid var(--line);border-radius:4px;padding:13px 15px;display:grid;gap:4px;min-width:0}
+.hyp .weight{font-family:var(--mono);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em}
+.recs{counter-reset:r;display:grid;gap:18px;list-style:none;padding:0;max-width:none}
+.recs>li{counter-increment:r;display:grid;grid-template-columns:34px 1fr;gap:10px}
+.recs>li::before{content:counter(r);font-family:var(--mono);font-weight:500;color:var(--accent);border:1px solid var(--accent);border-radius:50%;width:28px;height:28px;display:grid;place-items:center;font-size:.85rem}
+.recs>li>div{min-width:0;display:grid;gap:4px}
+.recs .meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.recs ul{margin-top:2px}
+.ev{font-size:.82rem;color:var(--muted)}
+.weeks{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.weeks div{border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-width:0}
+.weeks b{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block}
+.refs{font-size:.86rem;gap:5px}
+.firma{font-size:.86rem;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;margin-top:6px}
+.example-flag{font-family:var(--mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;background:var(--warn-soft);color:var(--warn);padding:3px 9px;border-radius:999px;display:inline-block;margin-bottom:10px}
+
+.install{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px;padding:10px 12px;border:1px dashed var(--accent);border-radius:4px;background:var(--accent-soft);font-size:.92rem}
+.install span{flex:1 1 220px;min-width:0}
+.install[hidden]{display:none!important}
+
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+@media print{
+  body{background:#fff;color:#000}
+  .noprint,.rail,.progress{display:none!important}
+  .sheet{border:0;padding:0 0 14px;break-inside:avoid-page}
+  .wrap{gap:10px;padding:0}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="sheet noprint" id="top">
+  <div class="eyebrow">Autoevaluación orientativa · funciones ejecutivas, ánimo y sueño</div>
+  <h1>Mapa Ejecutivo</h1>
+  <p class="muted" style="margin-top:8px">Cuestionarios validados internacionalmente y tareas breves de memoria y lenguaje. Al final recibes un informe referencial con tu perfil y un plan de acción concreto. Toma entre 20 y 25 minutos.</p>
+  <div style="display:grid;gap:10px;margin-top:14px">
+    <div class="progress" aria-hidden="true"><div id="bar" style="width:0%"></div></div>
+    <nav class="rail" id="rail" aria-label="Pasos de la evaluación"></nav>
+  </div>
+  <div class="install" id="install" hidden>
+    <span id="install-txt">Instala Mapa Ejecutivo en tu teléfono para usarlo como una app, incluso sin internet.</span>
+    <button type="button" class="btn" id="install-btn" hidden>Instalar app</button>
+    <button type="button" class="btn quiet" id="install-close" aria-label="Ocultar aviso de instalación">Ahora no</button>
+  </div>
+</header>
+
+<main id="view" style="display:grid;gap:20px"></main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ===================== Instrumentos ===================== */
+const PALABRAS = ["caballo","guitarra","limón","puente","camisa","volcán","cuchara","nube","martillo","tren"];
+
+const ASRS_OPTS = ["Nunca","Rara vez","Algunas veces","Con frecuencia","Muy frecuentemente"];
+const ASRS = [
+  "¿Con qué frecuencia tiene dificultad para terminar los detalles finales de un proyecto, una vez que las partes difíciles ya están hechas?",
+  "¿Con qué frecuencia tiene dificultad para ordenar las cosas cuando debe hacer una tarea que requiere organización?",
+  "¿Con qué frecuencia tiene problemas para recordar citas u obligaciones?",
+  "Cuando tiene una tarea que requiere mucho pensamiento, ¿con qué frecuencia evita o retrasa empezarla?",
+  "¿Con qué frecuencia mueve o retuerce las manos o los pies cuando tiene que estar sentado por mucho tiempo?",
+  "¿Con qué frecuencia se siente demasiado activo e impulsado a hacer cosas, como si lo moviera un motor?",
+  "¿Con qué frecuencia comete errores por descuido cuando trabaja en un proyecto aburrido o difícil?",
+  "¿Con qué frecuencia tiene dificultad para mantener la atención en un trabajo aburrido o repetitivo?",
+  "¿Con qué frecuencia tiene dificultad para concentrarse en lo que le dicen, aun cuando le hablan directamente?",
+  "¿Con qué frecuencia pierde o tiene dificultad para encontrar cosas en la casa o en el trabajo?",
+  "¿Con qué frecuencia se distrae por la actividad o el ruido a su alrededor?",
+  "¿Con qué frecuencia se levanta de su asiento en reuniones u otras situaciones en que se espera que permanezca sentado?",
+  "¿Con qué frecuencia se siente inquieto o intranquilo?",
+  "¿Con qué frecuencia tiene dificultad para desconectarse y relajarse cuando tiene tiempo para sí mismo?",
+  "¿Con qué frecuencia siente que habla demasiado en situaciones sociales?",
+  "En una conversación, ¿con qué frecuencia termina las frases de las personas antes de que ellas puedan hacerlo?",
+  "¿Con qué frecuencia tiene dificultad para esperar su turno en situaciones que lo requieren?",
+  "¿Con qué frecuencia interrumpe a otros cuando están ocupados?"
+];
+/* Umbral de casilla sombreada según hoja de puntuación OMS (Kessler et al., 2005) */
+const ASRS_THR = [2,2,2,3,3,3, 3,3,2,3,3,2,3,3,3,2,3,2];
+const ASRS_INAT = [0,1,2,3,6,7,8,9,10];
+const ASRS_HIP = [4,5,11,12,13,14,15,16,17];
+
+const PHQ_OPTS = ["Ningún día","Varios días","Más de la mitad de los días","Casi todos los días"];
+const PHQ = [
+  "Poco interés o placer en hacer cosas",
+  "Se ha sentido decaído(a), deprimido(a) o sin esperanzas",
+  "Dificultad para quedarse o permanecer dormido(a), o ha dormido demasiado",
+  "Se ha sentido cansado(a) o con poca energía",
+  "Sin apetito o ha comido en exceso",
+  "Se ha sentido mal consigo mismo(a), o siente que es un fracaso o que ha quedado mal consigo mismo(a) o con su familia",
+  "Dificultad para concentrarse en actividades como leer el diario o ver televisión",
+  "Se ha movido o hablado tan lento que otras personas podrían notarlo, o lo contrario: tan inquieto(a) que se ha movido mucho más de lo normal",
+  "Pensamientos de que estaría mejor muerto(a) o de hacerse daño de alguna manera"
+];
+const GAD = [
+  "Se ha sentido nervioso(a), ansioso(a) o con los nervios de punta",
+  "No ha sido capaz de parar o controlar su preocupación",
+  "Se ha preocupado demasiado por diferentes cosas",
+  "Ha tenido dificultad para relajarse",
+  "Se ha sentido tan inquieto(a) que le cuesta quedarse quieto(a)",
+  "Se ha molestado o irritado fácilmente",
+  "Ha tenido miedo de que algo terrible fuera a pasar"
+];
+const WHO_OPTS = ["Nunca","De vez en cuando","Menos de la mitad del tiempo","Más de la mitad del tiempo","La mayor parte del tiempo","Todo el tiempo"];
+const WHO5 = [
+  "Me he sentido alegre y de buen ánimo",
+  "Me he sentido tranquilo(a) y relajado(a)",
+  "Me he sentido activo(a) y con energía",
+  "Me he despertado fresco(a) y descansado(a)",
+  "Mi vida diaria ha estado llena de cosas que me interesan"
+];
+
+const CTX = [
+  {id:"sueno", q:"En días de trabajo, ¿cuántas horas duermes en promedio?", opts:[["5","5 o menos"],["6","6"],["7","7"],["8","8"],["9","9 o más"]]},
+  {id:"posterga", q:"¿Te acuestas más tarde de lo que querías, aunque sabes que deberías dormir, sin una razón externa que te obligue?", opts:[["0","Nunca"],["1","A veces"],["2","Frecuentemente"],["3","Casi todos los días"]]},
+  {id:"ronca", q:"¿Roncas fuerte (te lo han dicho)?", opts:[["si","Sí"],["no","No"],["ns","No sé"]]},
+  {id:"pausas", q:"¿Alguien ha notado que dejas de respirar o te ahogas mientras duermes?", opts:[["si","Sí"],["no","No"],["ns","No sé"]]},
+  {id:"somno", q:"¿Te has quedado dormido sin querer durante el día (reuniones, pantalla, conduciendo)?", opts:[["0","Nunca"],["1","Ocasionalmente"],["2","Frecuentemente"]]},
+  {id:"ejercicio", q:"Actividad física moderada o intensa a la semana (caminar rápido, bicicleta, gimnasio):", opts:[["0","Nada"],["1","Menos de 75 min"],["2","75 a 149 min"],["3","150 a 299 min"],["4","300 min o más"]]},
+  {id:"alcohol", q:"Tragos de alcohol a la semana:", opts:[["0","Ninguno"],["1","1 a 7"],["2","8 a 14"],["3","Más de 14"]]},
+  {id:"cafe", q:"Tazas de café o bebidas energéticas al día:", opts:[["0","0 a 1"],["1","2 a 3"],["2","4 a 5"],["3","6 o más"]]},
+  {id:"cafeTarde", q:"¿Tomas café o energéticas después de las 15:00?", opts:[["si","Sí"],["no","No"]]},
+  {id:"pantalla", q:"¿Usas el celular o el computador en la cama antes de dormir?", opts:[["si","Sí, casi siempre"],["av","A veces"],["no","No"]]},
+  {id:"desconexion", q:"¿Logras desconectarte mentalmente del trabajo al terminar tu jornada?", opts:[["2","Sí, casi siempre"],["1","A veces"],["0","Casi nunca"]]},
+  {id:"infancia", q:"Las dificultades de atención u organización que tengas, ¿estaban presentes antes de los 12 años?", opts:[["si","Sí"],["no","No"],["ns","No sé"],["na","No tengo esas dificultades"]]},
+  {id:"inicio", q:"En los últimos 2 años, ¿notas un empeoramiento claro y reciente de tu memoria o concentración respecto de cómo eras antes?", opts:[["si","Sí"],["no","No"]]},
+  {id:"tec", q:"¿Has tenido un golpe en la cabeza con pérdida de conciencia?", opts:[["si","Sí"],["no","No"]]}
+];
+const CONTEXTOS = ["Trabajo","Hogar y tareas domésticas","Estudios o cursos","Finanzas personales","Relaciones y familia","Proyectos personales"];
+
+/* ===================== Estado ===================== */
+const KEY = "mapa-ejecutivo-v1";
+function hoy(){ return new Date().toISOString().slice(0,10); }
+function blank(){
+  return {perfil:{nombre:"",edad:"",ocupacion:"",fecha:hoy(),acepta:false},
+    asrs:Array(18).fill(null), phq:Array(9).fill(null), gad:Array(7).fill(null), who5:Array(5).fill(null),
+    ctx:{estres:5, proyectos:2, contextos:[]},
+    flu:{modo:"escrito", texto:"", n:null, hecho:false},
+    mem:{visto:false, inm:"", dif:"", tA:null, tR:null},
+    paso:0, max:0, ejemplo:false};
+}
+let S = blank();
+try{ const raw = localStorage.getItem(KEY); if(raw){ const o = JSON.parse(raw); if(o && o.perfil) S = Object.assign(blank(), o); } }catch(e){}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+/* ===================== Utilidades ===================== */
+const $ = (s,el=document)=>el.querySelector(s);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();
+const sum = a => a.reduce((x,y)=>x+(y||0),0);
+function tokens(t){ return t.split(/[\n,;.]+|\s{2,}|\s+/).map(norm).filter(Boolean); }
+function stem(w){ return w.replace(/(es|s)$/,""); }
+
+const STEPS = [
+  {id:"inicio",  label:"Inicio"},
+  {id:"memoria", label:"Memoria"},
+  {id:"asrs",    label:"Atención"},
+  {id:"phq",     label:"Ánimo"},
+  {id:"gad",     label:"Ansiedad"},
+  {id:"who5",    label:"Bienestar"},
+  {id:"habitos", label:"Sueño y hábitos"},
+  {id:"fluidez", label:"Lenguaje"},
+  {id:"recuerdo",label:"Recuerdo"},
+  {id:"informe", label:"Informe"}
+];
+
+/* ===================== Navegación ===================== */
+function renderRail(){
+  const rail = $("#rail");
+  rail.innerHTML = STEPS.map((s,i)=>`<button type="button" data-go="${i}" ${i===S.paso?'aria-current="step"':''} class="${i<S.max&&i!==S.paso?'done':''}" ${i>S.max?'disabled':''}>${i+1}. ${s.label}</button>`).join("");
+  $("#bar").style.width = Math.round(S.paso/(STEPS.length-1)*100)+"%";
+  const cur = rail.querySelector('[aria-current]'); if(cur) cur.scrollIntoView({block:"nearest",inline:"center"});
+}
+function go(i){
+  stopTimers();
+  S.paso = i; S.max = Math.max(S.max,i); save();
+  render(); window.scrollTo({top:0});
+}
+document.addEventListener("click", e=>{
+  const g = e.target.closest("[data-go]"); if(g && !g.disabled){ go(+g.dataset.go); }
+});
+
+function navBtns(validator){
+  return `<div class="btns noprint" style="margin-top:18px">
+    ${S.paso>0?`<button type="button" class="btn quiet" id="prev">Anterior</button>`:""}
+    <span class="spacer"></span>
+    <span class="small muted" id="msg" role="status"></span>
+    <button type="button" class="btn" id="next">Continuar</button></div>`;
+}
+function bindNav(validator){
+  const p = $("#prev"); if(p) p.onclick = ()=>go(S.paso-1);
+  $("#next").onclick = ()=>{
+    const err = validator ? validator() : null;
+    if(err){ $("#msg").textContent = err; return; }
+    go(S.paso+1);
+  };
+}
+
+/* ===================== Cuestionarios ===================== */
+function scaleHTML(key, items, opts, offset){
+  return items.map((t,i)=>{
+    const v = S[key][i];
+    return `<fieldset class="q" id="${key}-q${i}"><legend><span class="n">${String(i+1+(offset||0)).padStart(2,"0")}</span><span>${esc(t)}</span></legend>
+      <div class="opts">${opts.map((o,j)=>`<label class="opt"><input type="radio" name="${key}-${i}" value="${j}" ${v===j?"checked":""} data-scale="${key}" data-i="${i}"><span>${esc(o)}</span></label>`).join("")}</div></fieldset>`;
+  }).join("");
+}
+document.addEventListener("change", e=>{
+  const t = e.target;
+  if(t.dataset.scale){ S[t.dataset.scale][+t.dataset.i] = +t.value; const fs=t.closest(".q"); if(fs) fs.classList.remove("missing"); save();
+    if(t.dataset.scale==="phq" && +t.dataset.i===8) crisisInline(); }
+  if(t.dataset.ctx){ S.ctx[t.dataset.ctx] = t.value; const fs=t.closest(".q"); if(fs) fs.classList.remove("missing"); save(); }
+});
+function checkScale(key){
+  const miss = S[key].map((v,i)=>v===null?i:-1).filter(i=>i>=0);
+  document.querySelectorAll(`[id^="${key}-q"]`).forEach(el=>el.classList.remove("missing"));
+  miss.forEach(i=>{ const el = $(`#${key}-q${i}`); if(el) el.classList.add("missing"); });
+  if(miss.length){ const el=$(`#${key}-q${miss[0]}`); if(el) el.scrollIntoView({behavior:"smooth",block:"center"}); return `Faltan ${miss.length} pregunta${miss.length>1?"s":""} por responder.`; }
+  return null;
+}
+
+/* ===================== Timers ===================== */
+let timers = [];
+function stopTimers(){ timers.forEach(clearInterval); timers = []; }
+function countdown(sec, el, done){
+  let t = sec; el.textContent = fmt(t);
+  const id = setInterval(()=>{ t--; el.textContent = fmt(Math.max(t,0)); if(t<=0){ clearInterval(id); done(); } },1000);
+  timers.push(id);
+}
+function fmt(s){ return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+
+/* ===================== Crisis ===================== */
+const CRISIS_HTML = `<div class="notice crit" role="alert"><p><strong>Si estás pensando en hacerte daño, no estás solo y hay ayuda inmediata.</strong></p>
+<p>En Chile: <strong>*4141</strong> línea de prevención del suicidio del Minsal, gratuita, confidencial, 24 horas, desde celulares. <strong>Salud Responde 600 360 7777</strong> (opción 2, salud mental). Ante riesgo inmediato acude a urgencias o llama al <strong>131</strong> (SAMU). Fuera de Chile, llama al número de emergencias local.</p>
+<p>Habla hoy con alguien de confianza. Esta respuesta es lo más importante de todo el informe.</p></div>`;
+function crisisInline(){
+  const box = $("#crisis-inline"); if(!box) return;
+  box.innerHTML = (S.phq[8]||0)>0 ? CRISIS_HTML : "";
+}
+
+/* ===================== Vistas ===================== */
+const V = {};
+
+V.inicio = ()=>`
+<section class="sheet">
+  <h2><span class="sec">01</span>Antes de empezar</h2>
+  <div class="notice"><p><strong>Esta herramienta es referencial.</strong> Entrega una orientación basada en instrumentos de tamizaje validados, pero <strong>no es un diagnóstico y no reemplaza la consulta con un médico, psiquiatra, psicólogo o neuropsicólogo</strong>. Un tamizaje positivo indica que conviene evaluar en profundidad; uno negativo no descarta una condición.</p></div>
+  <p style="margin-top:14px">Qué incluye:</p>
+  <ul>
+    <li><strong>Atención y funciones ejecutivas</strong>: escala ASRS v1.1 de la Organización Mundial de la Salud (18 ítems).</li>
+    <li><strong>Ánimo</strong>: PHQ‑9. <strong>Ansiedad</strong>: GAD‑7. <strong>Bienestar</strong>: índice WHO‑5.</li>
+    <li><strong>Sueño y hábitos</strong>: horas de sueño, señales de apnea, ejercicio, cafeína, alcohol y estrés.</li>
+    <li><strong>Tareas breves</strong>: memoria de 10 palabras con recuerdo diferido y fluidez verbal de 1 minuto.</li>
+  </ul>
+  <p class="small muted" style="margin-top:10px">Tus respuestas se guardan solo en este navegador. No se envían a ningún servidor.</p>
+</section>
+<section class="sheet">
+  <h2><span class="sec">02</span>Datos de identificación</h2>
+  <div class="grid2">
+    <div class="field"><label for="f-nombre">Nombre</label><input type="text" id="f-nombre" value="${esc(S.perfil.nombre)}" autocomplete="name"></div>
+    <div class="field"><label for="f-edad">Edad</label><input type="number" id="f-edad" min="18" max="99" value="${esc(S.perfil.edad)}"></div>
+    <div class="field"><label for="f-ocu">Ocupación</label><input type="text" id="f-ocu" value="${esc(S.perfil.ocupacion)}"></div>
+    <div class="field"><label for="f-motivo">Motivo de consulta, en una frase</label><input type="text" id="f-motivo" value="${esc(S.perfil.motivo||"")}" placeholder="Ej.: empiezo muchas cosas y no termino"></div>
+  </div>
+  <label class="opt" style="display:flex;gap:10px;align-items:flex-start;margin-top:16px">
+    <input type="checkbox" id="f-acepta" ${S.perfil.acepta?"checked":""} style="position:static;opacity:1;width:18px;height:18px;margin-top:4px;accent-color:var(--accent)">
+    <span style="border:0;padding:0;background:none">Entiendo que el resultado es una orientación referencial y que no reemplaza una consulta médica.</span>
+  </label>
+  <p class="small muted" style="margin-top:8px">Esta herramienta está diseñada para adultos de 18 años o más.</p>
+  ${navBtns()}
+  <div class="btns noprint" style="margin-top:12px;border-top:1px solid var(--line);padding-top:14px">
+    <button type="button" class="btn ghost" id="demo">Ver un informe de ejemplo</button>
+    <button type="button" class="btn quiet" id="reset">Borrar mis respuestas</button>
+    <span class="small muted" id="reset-msg" role="status"></span>
+  </div>
+</section>`;
+V.inicio.bind = ()=>{
+  const sync = ()=>{ S.perfil.nombre=$("#f-nombre").value; S.perfil.edad=$("#f-edad").value; S.perfil.ocupacion=$("#f-ocu").value; S.perfil.motivo=$("#f-motivo").value; S.perfil.acepta=$("#f-acepta").checked; save(); };
+  ["#f-nombre","#f-edad","#f-ocu","#f-motivo","#f-acepta"].forEach(s=>$(s).addEventListener("input",sync));
+  $("#f-acepta").addEventListener("change",sync);
+  bindNav(()=>{
+    sync();
+    const ed = +S.perfil.edad;
+    if(!S.perfil.edad || ed<18 || ed>99) return "Indica una edad entre 18 y 99 años.";
+    if(!S.perfil.acepta) return "Marca la casilla de aceptación para continuar.";
+    if(S.ejemplo){ const p = S.perfil; S = blank(); S.perfil = Object.assign(p,{nombre:p.nombre}); }
+    return null;
+  });
+  $("#demo").onclick = ()=>{ S = ejemplo(); save(); go(9); };
+  let armed = false;
+  $("#reset").onclick = ()=>{
+    if(!armed){ armed = true; $("#reset").textContent = "Confirmar: borrar todo"; $("#reset-msg").textContent = "Se eliminarán todas las respuestas guardadas."; return; }
+    S = blank(); try{ localStorage.removeItem(KEY); }catch(e){} render();
+  };
+};
+
+V.memoria = ()=>`
+<section class="sheet">
+  <h2><span class="sec">Tarea 1</span>Aprendizaje de 10 palabras</h2>
+  <p>Verás 10 palabras durante <strong>60 segundos</strong>. Léelas en voz alta y trata de recordarlas. <strong>No las anotes</strong>: al final de la evaluación, unos 15 minutos después, te pediremos que las escribas de memoria.</p>
+  <div id="mem-area">
+    ${S.mem.visto ? `<div class="notice info"><p>Ya viste las palabras. Escribe ahora las que recuerdes (recuerdo inmediato).</p></div>` :
+    `<div class="btns"><button type="button" class="btn" id="mem-start">Mostrar las palabras</button></div>`}
+  </div>
+  <div id="mem-inm" ${S.mem.visto?"":"hidden"} style="margin-top:14px">
+    <div class="field"><label for="f-inm">Escribe las palabras que recuerdes, separadas por coma o en líneas distintas</label>
+    <textarea id="f-inm" autocomplete="off" spellcheck="false">${esc(S.mem.inm)}</textarea></div>
+  </div>
+  ${navBtns()}
+</section>`;
+V.memoria.bind = ()=>{
+  const st = $("#mem-start");
+  if(st) st.onclick = ()=>{
+    $("#mem-area").innerHTML = `<div class="timer" id="mem-t" aria-live="off">1:00</div><div class="words">${PALABRAS.map(w=>`<div>${w.toUpperCase()}</div>`).join("")}</div>`;
+    countdown(60, $("#mem-t"), ()=>{
+      S.mem.visto = true; S.mem.tA = Date.now(); save();
+      $("#mem-area").innerHTML = `<div class="notice info"><p>Tiempo terminado. Escribe las palabras que recuerdes.</p></div>`;
+      $("#mem-inm").hidden = false; $("#f-inm").focus();
+    });
+  };
+  $("#f-inm").addEventListener("input", e=>{ S.mem.inm = e.target.value; save(); });
+  bindNav(()=>{
+    if(!S.mem.visto) return "Primero muestra y lee las palabras.";
+    if(!S.mem.inm.trim()) return "Escribe al menos una palabra que recuerdes.";
+    return null;
+  });
+};
+
+V.asrs = ()=>`
+<section class="sheet">
+  <h2><span class="sec">ASRS v1.1 · OMS</span>Atención, organización e impulsividad</h2>
+  <p>Piensa en cómo te has sentido y comportado <strong>en los últimos 6 meses</strong>. Elige la opción que mejor describe con qué frecuencia te ocurre.</p>
+  <h3 style="margin-top:14px">Parte A</h3>
+  ${scaleHTML("asrs", ASRS.slice(0,6), ASRS_OPTS)}
+  <h3 style="margin-top:14px">Parte B</h3>
+  <div id="asrs-b"></div>
+  ${navBtns()}
+</section>`;
+V.asrs.bind = ()=>{
+  /* Parte B usa índices 6..17 */
+  const html = ASRS.slice(6).map((t,k)=>{ const i=k+6, v=S.asrs[i];
+    return `<fieldset class="q" id="asrs-q${i}"><legend><span class="n">${String(i+1).padStart(2,"0")}</span><span>${esc(t)}</span></legend>
+    <div class="opts">${ASRS_OPTS.map((o,j)=>`<label class="opt"><input type="radio" name="asrs-${i}" value="${j}" ${v===j?"checked":""} data-scale="asrs" data-i="${i}"><span>${esc(o)}</span></label>`).join("")}</div></fieldset>`; }).join("");
+  $("#asrs-b").innerHTML = html;
+  bindNav(()=>checkScale("asrs"));
+};
+
+V.phq = ()=>`
+<section class="sheet">
+  <h2><span class="sec">PHQ‑9</span>Estado de ánimo</h2>
+  <p>Durante <strong>las últimas 2 semanas</strong>, ¿con qué frecuencia te han molestado los siguientes problemas?</p>
+  ${scaleHTML("phq", PHQ, PHQ_OPTS)}
+  <div id="crisis-inline" style="margin-top:10px">${(S.phq[8]||0)>0?CRISIS_HTML:""}</div>
+  ${navBtns()}
+</section>`;
+V.phq.bind = ()=>bindNav(()=>checkScale("phq"));
+
+V.gad = ()=>`
+<section class="sheet">
+  <h2><span class="sec">GAD‑7</span>Ansiedad</h2>
+  <p>Durante <strong>las últimas 2 semanas</strong>, ¿con qué frecuencia te han molestado los siguientes problemas?</p>
+  ${scaleHTML("gad", GAD, PHQ_OPTS)}
+  ${navBtns()}
+</section>`;
+V.gad.bind = ()=>bindNav(()=>checkScale("gad"));
+
+V.who5 = ()=>`
+<section class="sheet">
+  <h2><span class="sec">WHO‑5</span>Bienestar general</h2>
+  <p>Indica cuánto se acerca cada frase a cómo te has sentido <strong>en las últimas 2 semanas</strong>.</p>
+  ${scaleHTML("who5", WHO5, WHO_OPTS)}
+  ${navBtns()}
+</section>`;
+V.who5.bind = ()=>bindNav(()=>checkScale("who5"));
+
+V.habitos = ()=>`
+<section class="sheet">
+  <h2><span class="sec">Contexto</span>Sueño, hábitos y carga actual</h2>
+  <p>Estas preguntas no forman una escala. Sirven para interpretar los resultados y para que las recomendaciones apunten a tu situación real.</p>
+  ${CTX.map((c,i)=>`<fieldset class="q" id="ctx-q${i}"><legend><span class="n">${String(i+1).padStart(2,"0")}</span><span>${esc(c.q)}</span></legend>
+    <div class="opts">${c.opts.map(o=>`<label class="opt"><input type="radio" name="ctx-${c.id}" value="${o[0]}" ${S.ctx[c.id]===o[0]?"checked":""} data-ctx="${c.id}"><span>${esc(o[1])}</span></label>`).join("")}</div></fieldset>`).join("")}
+  <fieldset class="q"><legend><span class="n">${CTX.length+1}</span><span>Nivel de estrés habitual, de 0 (nada) a 10 (máximo): <strong id="estres-v">${S.ctx.estres}</strong></span></legend>
+    <input type="range" id="f-estres" min="0" max="10" step="1" value="${S.ctx.estres}" aria-label="Nivel de estrés de 0 a 10"></fieldset>
+  <fieldset class="q"><legend><span class="n">${CTX.length+2}</span><span>¿Cuántos proyectos personales tienes abiertos a la vez (además del trabajo principal)?</span></legend>
+    <div style="max-width:140px"><input type="number" id="f-proy" min="0" max="30" value="${esc(S.ctx.proyectos)}" aria-label="Número de proyectos abiertos"></div></fieldset>
+  <fieldset class="q"><legend><span class="n">${CTX.length+3}</span><span>¿En qué áreas de tu vida notas dificultades para organizarte o terminar lo que empiezas? Marca todas las que correspondan.</span></legend>
+    <div class="opts">${CONTEXTOS.map(c=>`<label class="opt"><input type="checkbox" value="${esc(c)}" data-cx ${S.ctx.contextos.includes(c)?"checked":""}><span>${esc(c)}</span></label>`).join("")}</div></fieldset>
+  ${navBtns()}
+</section>`;
+V.habitos.bind = ()=>{
+  $("#f-estres").addEventListener("input",e=>{ S.ctx.estres=+e.target.value; $("#estres-v").textContent=e.target.value; save(); });
+  $("#f-proy").addEventListener("input",e=>{ S.ctx.proyectos=Math.max(0,+e.target.value||0); save(); });
+  document.querySelectorAll("[data-cx]").forEach(cb=>cb.addEventListener("change",()=>{
+    S.ctx.contextos = [...document.querySelectorAll("[data-cx]:checked")].map(x=>x.value); save(); }));
+  bindNav(()=>{
+    const miss = CTX.map((c,i)=>S.ctx[c.id]==null?i:-1).filter(i=>i>=0);
+    document.querySelectorAll('[id^="ctx-q"]').forEach(el=>el.classList.remove("missing"));
+    miss.forEach(i=>$("#ctx-q"+i).classList.add("missing"));
+    if(miss.length){ $("#ctx-q"+miss[0]).scrollIntoView({behavior:"smooth",block:"center"}); return `Faltan ${miss.length} pregunta${miss.length>1?"s":""}.`; }
+    return null;
+  });
+};
+
+V.fluidez = ()=>`
+<section class="sheet">
+  <h2><span class="sec">Tarea 2</span>Fluidez verbal: animales en 1 minuto</h2>
+  <p>Cuando presiones <strong>Empezar</strong>, nombra todos los <strong>animales</strong> que puedas en 60 segundos. Cualquier animal sirve. No repitas.</p>
+  <div class="opts" role="radiogroup" aria-label="Modalidad">
+    <label class="opt"><input type="radio" name="flu-modo" value="escrito" ${S.flu.modo==="escrito"?"checked":""} data-flu><span>Los escribo en la app</span></label>
+    <label class="opt"><input type="radio" name="flu-modo" value="voz" ${S.flu.modo==="voz"?"checked":""} data-flu><span>Los digo en voz alta y alguien los cuenta (recomendado)</span></label>
+  </div>
+  <p class="small muted" style="margin-top:8px">Las normas de referencia se obtuvieron con respuesta oral. Escribir es más lento, así que el resultado escrito se interpreta con más cautela.</p>
+  <div class="btns" style="margin-top:12px"><button type="button" class="btn" id="flu-start">${S.flu.hecho?"Repetir la tarea":"Empezar"}</button><div class="timer" id="flu-t">1:00</div></div>
+  <div class="field" id="flu-box" style="margin-top:12px" ${S.flu.modo==="escrito"?"":"hidden"}>
+    <label for="f-flu">Animales (uno por línea o separados por coma)</label>
+    <textarea id="f-flu" autocomplete="off" spellcheck="false" ${S.flu.hecho?"":"disabled"}>${esc(S.flu.texto)}</textarea>
+  </div>
+  <div class="field" style="margin-top:12px;max-width:340px">
+    <label for="f-flu-n">Animales válidos, sin repeticiones</label>
+    <input type="number" id="f-flu-n" min="0" max="80" value="${S.flu.n==null?"":S.flu.n}">
+    <span class="small muted" id="flu-auto"></span>
+  </div>
+  ${navBtns()}
+</section>`;
+V.fluidez.bind = ()=>{
+  const auto = ()=>{
+    if(S.flu.modo!=="escrito") { $("#flu-auto").textContent = "Ingresa cuántos animales distintos dijiste."; return; }
+    const tk = tokens(S.flu.texto); const set = new Set(tk.map(stem));
+    $("#flu-auto").textContent = tk.length ? `Conteo automático: ${set.size} distintos, ${tk.length-set.size} repetidos. Corrige si alguno no es un animal.` : "";
+    return set.size;
+  };
+  auto();
+  document.querySelectorAll("[data-flu]").forEach(r=>r.addEventListener("change",e=>{ S.flu.modo=e.target.value; save(); $("#flu-box").hidden = S.flu.modo!=="escrito"; auto(); }));
+  $("#f-flu").addEventListener("input",e=>{ S.flu.texto=e.target.value; const n=auto(); S.flu.n=n; $("#f-flu-n").value=n; save(); });
+  $("#f-flu-n").addEventListener("input",e=>{ S.flu.n = e.target.value===""?null:+e.target.value; save(); });
+  $("#flu-start").onclick = ()=>{
+    stopTimers(); S.flu.texto=""; S.flu.hecho=false; $("#f-flu").value="";
+    const ta = $("#f-flu"); ta.disabled = false; if(S.flu.modo==="escrito") ta.focus();
+    $("#flu-start").disabled = true;
+    countdown(60, $("#flu-t"), ()=>{
+      ta.disabled = true; S.flu.hecho = true; $("#flu-start").disabled = false; $("#flu-start").textContent="Repetir la tarea";
+      if(S.flu.modo==="escrito"){ const n=auto(); S.flu.n=n; $("#f-flu-n").value=n; }
+      else $("#f-flu-n").focus();
+      save();
+    });
+  };
+  bindNav(()=>{
+    if(!S.flu.hecho && S.flu.n==null) return "Realiza la tarea de 1 minuto.";
+    if(S.flu.n==null) return "Indica cuántos animales válidos nombraste.";
+    S.flu.hecho = true; save(); return null;
+  });
+};
+
+V.recuerdo = ()=>{
+  const min = S.mem.tA ? Math.round((Date.now()-S.mem.tA)/60000) : null;
+  return `
+<section class="sheet">
+  <h2><span class="sec">Tarea 3</span>Recuerdo diferido</h2>
+  <p>Al inicio viste una lista de 10 palabras${min!=null?`, hace unos <strong>${min} minutos</strong>`:""}. Escribe todas las que recuerdes, en cualquier orden. No vuelvas atrás para mirarlas.</p>
+  <div class="field"><label for="f-dif">Palabras que recuerdas</label><textarea id="f-dif" autocomplete="off" spellcheck="false">${esc(S.mem.dif)}</textarea></div>
+  ${navBtns()}
+</section>`;
+};
+V.recuerdo.bind = ()=>{
+  $("#f-dif").addEventListener("input",e=>{ S.mem.dif=e.target.value; save(); });
+  $("#next").textContent = "Generar informe";
+  bindNav(()=>{
+    if(!S.mem.dif.trim()) return "Escribe al menos una palabra, o escribe «ninguna».";
+    S.mem.tR = Date.now(); save();
+    const faltan = ["asrs","phq","gad","who5"].filter(k=>S[k].some(v=>v===null));
+    if(faltan.length) return "Hay cuestionarios incompletos. Vuelve a los pasos marcados.";
+    return null;
+  });
+};
+
+/* ===================== Análisis ===================== */
+function memScore(text){
+  const tk = [...new Set(tokens(text))];
+  const match = (t,w)=> t===w || t===w+"s" || t===w+"es";
+  const target = PALABRAS.map(norm);
+  const hit = target.map(w=>tk.some(t=>match(t,w)));
+  const intr = tk.filter(t=>t!=="ninguna" && !target.some(w=>match(t,w))).length;
+  return {n:hit.filter(Boolean).length, intr, faltan:PALABRAS.filter((w,i)=>!hit[i])};
+}
+
+function analyze(){
+  const a = {};
+  const r = S.asrs;
+  a.asrsA = r.slice(0,6).filter((v,i)=>v>=ASRS_THR[i]).length;
+  a.asrsB = r.slice(6).filter((v,k)=>v>=ASRS_THR[k+6]).length;
+  a.asrsPos = a.asrsA>=4;
+  a.inat = sum(ASRS_INAT.map(i=>r[i])); a.hip = sum(ASRS_HIP.map(i=>r[i]));
+  a.phq = sum(S.phq); a.gad = sum(S.gad); a.who = sum(S.who5)*4;
+  a.suicida = (S.phq[8]||0)>0;
+  a.phqSev = a.phq>=20?"Severo":a.phq>=15?"Moderadamente severo":a.phq>=10?"Moderado":a.phq>=5?"Leve":"Mínimo";
+  a.gadSev = a.gad>=15?"Severo":a.gad>=10?"Moderado":a.gad>=5?"Leve":"Mínimo";
+  a.whoSev = a.who<=28?"Muy bajo":a.who<=50?"Bajo":"Adecuado";
+  const c = S.ctx;
+  a.sueno = +c.sueno; a.posterga = +c.posterga;
+  a.apnea = c.pausas==="si" || (c.ronca==="si" && +c.somno>=1);
+  a.somnoRiesgo = +c.somno>=2;
+  a.ejer = +c.ejercicio; a.alcohol = +c.alcohol; a.cafe = +c.cafe;
+  a.estres = +c.estres; a.descon = +c.desconexion;
+  a.proy = +c.proyectos||0; a.nctx = (c.contextos||[]).length;
+  a.infancia = c.infancia; a.inicioReciente = c.inicio==="si"; a.tec = c.tec==="si";
+  a.edad = +S.perfil.edad;
+  const mi = memScore(S.mem.inm), md = memScore(S.mem.dif);
+  a.memI = mi.n; a.memD = md.n; a.memFaltan = md.faltan; a.memIntr = md.intr;
+  a.ret = mi.n ? Math.min(100, Math.round(md.n/mi.n*100)) : 0;
+  a.delay = (S.mem.tA && S.mem.tR) ? Math.round((S.mem.tR-S.mem.tA)/60000) : null;
+  a.flu = S.flu.n; a.fluVoz = S.flu.modo==="voz";
+  a.fluNivel = a.flu>=18?"ok":a.flu>=15?"med":"alto";
+  a.memNivel = a.memD>=8?"ok":a.memD>=6?"med":"alto";
+  a.ejecItems = [0,3].filter(i=>r[i]>=3).length;
+  return a;
+}
+
+/* Referencias */
+const REF = {
+  kessler:["Kessler RC, et al. (2005). The World Health Organization Adult ADHD Self-Report Scale (ASRS). Psychological Medicine, 35(2), 245–256.","Kessler ASRS World Health Organization 2005 Psychological Medicine"],
+  kooij:["Kooij JJS, et al. (2019). Updated European Consensus Statement on diagnosis and treatment of adult ADHD. European Psychiatry, 56, 14–34.","Kooij updated European consensus adult ADHD 2019"],
+  faraone:["Faraone SV, et al. (2021). The World Federation of ADHD International Consensus Statement: 208 evidence-based conclusions about the disorder. Neuroscience & Biobehavioral Reviews, 128, 789–818.","Faraone World Federation ADHD international consensus statement 208"],
+  safren:["Safren SA, et al. (2010). Cognitive behavioral therapy vs relaxation with educational support for medication-treated adults with ADHD and persistent symptoms. JAMA, 304(8), 875–880.","Safren cognitive behavioral therapy relaxation adults ADHD JAMA 2010"],
+  gollwitzer:["Gollwitzer PM, Sheeran P. (2006). Implementation intentions and goal achievement: a meta-analysis of effects and processes. Advances in Experimental Social Psychology, 38, 69–119.","Gollwitzer Sheeran implementation intentions goal achievement meta-analysis"],
+  kroenke:["Kroenke K, Spitzer RL, Williams JB. (2001). The PHQ-9: validity of a brief depression severity measure. Journal of General Internal Medicine, 16(9), 606–613.","Kroenke PHQ-9 validity brief depression severity measure"],
+  spitzer:["Spitzer RL, Kroenke K, Williams JB, Löwe B. (2006). A brief measure for assessing generalized anxiety disorder: the GAD-7. Archives of Internal Medicine, 166(10), 1092–1097.","Spitzer brief measure generalized anxiety disorder GAD-7"],
+  topp:["Topp CW, Østergaard SD, Søndergaard S, Bech P. (2015). The WHO-5 Well-Being Index: a systematic review of the literature. Psychotherapy and Psychosomatics, 84(3), 167–176.","Topp WHO-5 Well-Being Index systematic review"],
+  watson:["Watson NF, et al. (2015). Recommended amount of sleep for a healthy adult: a joint consensus statement of the American Academy of Sleep Medicine and Sleep Research Society. Sleep, 38(6), 843–844.","Watson recommended amount of sleep healthy adult consensus statement AASM"],
+  lim:["Lim J, Dinges DF. (2010). A meta-analysis of the impact of short-term sleep deprivation on cognitive variables. Psychological Bulletin, 136(3), 375–389.","Lim Dinges meta-analysis short-term sleep deprivation cognitive variables"],
+  kroese:["Kroese FM, De Ridder DTD, Evers C, Adriaanse MA. (2014). Bedtime procrastination: introducing a new area of procrastination. Frontiers in Psychology, 5, 611.","Kroese bedtime procrastination introducing new area"],
+  trauer:["Trauer JM, et al. (2015). Cognitive behavioral therapy for chronic insomnia: a systematic review and meta-analysis. Annals of Internal Medicine, 163(3), 191–204.","Trauer cognitive behavioral therapy chronic insomnia meta-analysis"],
+  drake:["Drake C, Roehrs T, Shambroom J, Roth T. (2013). Caffeine effects on sleep taken 0, 3, or 6 hours before going to bed. Journal of Clinical Sleep Medicine, 9(11), 1195–1200.","Drake caffeine effects on sleep 0 3 6 hours before bed"],
+  bull:["Bull FC, et al. (2020). World Health Organization 2020 guidelines on physical activity and sedentary behaviour. British Journal of Sports Medicine, 54(24), 1451–1462.","Bull World Health Organization 2020 guidelines physical activity sedentary behaviour"],
+  singh:["Singh B, et al. (2023). Effectiveness of physical activity interventions for improving depression, anxiety and distress: an overview of systematic reviews. British Journal of Sports Medicine, 57(18), 1203–1209.","Singh effectiveness physical activity interventions depression anxiety distress overview systematic reviews"],
+  ekers:["Ekers D, et al. (2014). Behavioural activation for depression; an update of meta-analysis of effectiveness and sub group analysis. PLoS ONE, 9(6), e100100.","Ekers behavioural activation depression update meta-analysis"],
+  cuijpers:["Cuijpers P, et al. (2014). Psychological treatment of generalized anxiety disorder: a meta-analysis. Clinical Psychology Review, 34(2), 130–140.","Cuijpers psychological treatment generalized anxiety disorder meta-analysis 2014"],
+  sonnentag:["Sonnentag S, Fritz C. (2015). Recovery from job stress: the stressor-detachment model as an integrative framework. Journal of Organizational Behavior, 36(S1), S72–S103.","Sonnentag Fritz recovery from job stress stressor-detachment model"],
+  gbd:["GBD 2016 Alcohol Collaborators. (2018). Alcohol use and burden for 195 countries and territories, 1990–2016. The Lancet, 392(10152), 1015–1035.","GBD 2016 alcohol collaborators alcohol use burden 195 countries"],
+  tombaugh:["Tombaugh TN, Kozak J, Rees L. (1999). Normative data stratified by age and education for two measures of verbal fluency: FAS and animal naming. Archives of Clinical Neuropsychology, 14(2), 167–177.","Tombaugh normative data verbal fluency FAS animal naming"],
+  efsa:["EFSA Panel on Dietetic Products, Nutrition and Allergies. (2015). Scientific opinion on the safety of caffeine. EFSA Journal, 13(5), 4102.","EFSA scientific opinion safety of caffeine 2015"]
+};
+function pubmed(k){ return "https://pubmed.ncbi.nlm.nih.gov/?term="+encodeURIComponent(REF[k][1]); }
+
+function buildRecs(a){
+  const R = [];
+  const add = (o)=>R.push(o);
+
+  if(a.suicida) add({p:0, t:"Busca apoyo hoy mismo", why:"Respondiste que has tenido pensamientos de estar mejor muerto o de hacerte daño. Esto requiere atención prioritaria, sin importar el resto del informe.",
+    steps:["Llama al *4141 (Minsal, 24 horas, gratuito) o a Salud Responde 600 360 7777, opción 2.","Cuéntale hoy a una persona de confianza cómo te sientes.","Pide una hora con médico o psiquiatra esta semana y muestra este informe."], refs:["kroenke"]});
+
+  if(a.somnoRiesgo) add({p:1, t:"No conduzcas ni operes maquinaria con somnolencia", why:"Quedarse dormido sin querer durante el día es una señal de alerta de seguridad, además de un síntoma que un médico debe evaluar.",
+    steps:["Si sientes sueño al volante, detente en un lugar seguro y descansa 15 a 20 minutos.","Menciona este síntoma explícitamente en tu próxima consulta médica."], refs:["watson"]});
+
+  if(a.apnea) add({p:1, t:"Consulta médica para descartar apnea del sueño", why:"Los ronquidos fuertes, las pausas respiratorias observadas o la somnolencia diurna sugieren un posible trastorno respiratorio del sueño. La apnea fragmenta el sueño y deteriora la atención y la memoria aunque duermas suficientes horas.",
+    steps:["Pide hora con médico general, otorrino o especialista en sueño.","Lleva estos datos: ronquidos, pausas observadas, somnolencia y horas de sueño.","El médico puede indicar una poligrafía o polisomnografía, que es la prueba que confirma o descarta el cuadro."], refs:["watson"]});
+
+  if(a.asrsPos) add({p:1, t:"Evaluación formal de TDAH del adulto", why:`Tu Parte A de la ASRS marcó ${a.asrsA} de 6 respuestas en la zona de riesgo. Según la OMS, 4 o más indican síntomas muy compatibles con TDAH del adulto y justifican una evaluación clínica. ${a.infancia==="si"?"Señalaste además que las dificultades existían antes de los 12 años, lo que es un criterio diagnóstico central.":"Un criterio central es que los síntomas existan desde la infancia, y eso aún debe confirmarse."}`,
+    steps:["Consulta con psiquiatra o neurólogo con experiencia en TDAH adulto, idealmente junto a un neuropsicólogo.","Instrumentos habituales: entrevista diagnóstica estructurada (DIVA‑5), escalas para adultos (CAARS) y pruebas de atención y funciones ejecutivas.","Reúne evidencia de la infancia: libretas de notas, informes escolares o el relato de un familiar que te conoció de niño.","Lleva este informe impreso o copiado."], refs:["kessler","kooij","faraone"]});
+
+  if(a.phq>=10 && !a.suicida) add({p:1, t:"Consulta por síntomas de ánimo", why:`Tu PHQ‑9 es ${a.phq} (${a.phqSev.toLowerCase()}). Un puntaje de 10 o más tiene buena sensibilidad y especificidad para depresión mayor y amerita evaluación profesional. El ánimo bajo también reduce la concentración y la motivación para terminar tareas.`,
+    steps:["Pide hora con médico general, psicólogo o psiquiatra en las próximas 2 semanas.","Mientras tanto, agenda cada día una actividad pequeña que antes te daba satisfacción o sentido, aunque no tengas ganas (activación conductual).","Mantén contacto social: una conversación real al día con alguien cercano."], refs:["kroenke","ekers","singh"]});
+
+  if(a.gad>=10) add({p:1, t:"Consulta por síntomas de ansiedad", why:`Tu GAD‑7 es ${a.gad} (${a.gadSev.toLowerCase()}). Desde 10 puntos se recomienda evaluación clínica. La terapia cognitivo‑conductual tiene evidencia sólida para la ansiedad generalizada.`,
+    steps:["Consulta con psicólogo clínico o psiquiatra.","Practica un «tiempo de preocupación»: 15 minutos fijos al día para anotar preocupaciones; fuera de ese horario, las posterga para ese momento.","Respiración lenta: 5 a 6 respiraciones por minuto durante 5 minutos, 2 veces al día."], refs:["spitzer","cuijpers"]});
+
+  if(a.inicioReciente && (a.edad>=40 || a.memNivel==="alto")) add({p:1, t:"Control médico por cambio cognitivo reciente", why:"Un empeoramiento reciente de memoria o concentración es distinto a un patrón de toda la vida y conviene estudiarlo. Muchas causas son tratables: sueño, ánimo, tiroides, vitamina B12, medicamentos o presión arterial.",
+    steps:["Consulta con médico general o neurólogo y describe desde cuándo notas el cambio.","Pregunta por exámenes básicos (hemograma, tiroides, B12, glicemia) y revisión de medicamentos."], refs:["watson"]});
+
+  if(a.memNivel==="alto" || (a.fluNivel==="alto" && a.fluVoz)) add({p:2, t:"Evaluación neuropsicológica de memoria y lenguaje", why:`En las tareas breves obtuviste ${a.memD} de 10 en el recuerdo diferido y ${a.flu} animales en fluidez. ${a.memNivel==="alto"?"El recuerdo quedó bajo lo habitual para adultos. ":""}Estas tareas son muy breves y sensibles al cansancio y la distracción, así que conviene confirmarlo con pruebas estandarizadas y normas locales.`,
+    steps:["Pide una evaluación neuropsicológica completa.","Antes de concluir nada, repite esta autoevaluación descansado y sin interrupciones."], refs:["tombaugh"]});
+
+  if(a.sueno<=6) add({p:1, t:"Recupera al menos 7 horas de sueño", why:`Duermes ${a.sueno<=5?"5 horas o menos":"6 horas"} en días de trabajo. La Academia Americana de Medicina del Sueño recomienda 7 o más horas en adultos. La falta de sueño sostenida deteriora justo la atención sostenida, el control de impulsos y la memoria de trabajo, y puede imitar o amplificar un déficit atencional.`,
+    steps:["Fija una hora de despertar igual todos los días, incluido el fin de semana.","Calcula tu hora de acostarte restando 7 h 30 min a esa hora y pon una alarma 60 minutos antes como «cierre de turno».",
+      a.posterga>=2?"Ante la postergación nocturna: programa durante el día 30 minutos de tiempo propio protegido, para que la noche deje de ser el único espacio libre.":"Deja el celular fuera del dormitorio y carga el teléfono en otra pieza.",
+      "Si en 3 semanas no logras dormir mejor, consulta: la terapia cognitivo‑conductual para el insomnio (TCC‑I) es el tratamiento de primera línea."], refs:["watson","lim","kroese","trauer"]});
+  else if(a.posterga>=2) add({p:2, t:"Corta la postergación del sueño", why:"Aunque tus horas de sueño son suficientes en promedio, acostarte más tarde de lo planeado con frecuencia desordena el ritmo y suele aparecer cuando el día no deja tiempo propio.",
+    steps:["Pon una alarma fija de cierre 60 minutos antes de dormir.","Reserva tiempo propio durante el día para que la noche no sea el único espacio libre."], refs:["kroese"]});
+
+  const ejec = a.asrsPos || a.inat>=20 || a.ejecItems>=1 || a.proy>=3;
+  if(ejec) add({p:2, t:"Un sistema externo para terminar lo que empiezas", why:`Las dificultades ejecutivas mejoran más con estructura externa que con fuerza de voluntad. ${a.proy>=3?`Hoy tienes ${a.proy} proyectos abiertos en paralelo: siempre habrá uno más atractivo que el actual, y eso alimenta el ciclo de empezar y abandonar. `:""}La terapia cognitivo‑conductual para TDAH adulto, basada en estas técnicas, mostró mejoras clínicas en ensayos controlados.`,
+    steps:[
+      `Limita el trabajo en curso: elige ${a.proy>=3?"uno o dos proyectos":"un proyecto"} para los próximos 90 días. El resto va a una lista de «estacionamiento de ideas»: se anotan, pero no se tocan.`,
+      "Define el «terminado» antes de empezar: escribe en una línea qué tiene que existir para considerarlo listo.",
+      "Trabaja en bloques de 25 a 45 minutos con un entregable visible y un temporizador a la vista. Al cerrar el bloque, anota el siguiente paso concreto.",
+      "Usa intenciones de implementación: «Si son las 19:00 del martes y estoy en el escritorio, entonces abro el proyecto X y hago Y».",
+      "Crea una consecuencia externa: una fecha comprometida con otra persona o una revisión semanal con alguien de confianza.",
+      "Externaliza la memoria: un único sistema de tareas y calendario, revisado cada mañana durante 5 minutos."], refs:["safren","gollwitzer","kooij"]});
+
+  if(a.estres>=7 || a.descon===0) add({p:2, t:"Desconexión psicológica del trabajo", why:`Reportas estrés de ${a.estres} sobre 10${a.descon===0?" y casi nunca logras desconectarte":""}. La investigación sobre recuperación laboral muestra que la desconexión mental fuera del horario predice menos agotamiento y mejor rendimiento al día siguiente.`,
+    steps:["Ritual de cierre de jornada: anota pendientes y el primer paso de mañana, y cierra el correo.","Silencia notificaciones de trabajo fuera de turno, salvo un canal definido para emergencias reales.","Agenda una actividad que absorba tu atención fuera del trabajo (deporte, música, oficio manual) al menos 3 veces por semana."], refs:["sonnentag"]});
+
+  if(a.ejer<=2) add({p:2, t:"Llega a 150 minutos de actividad física semanal", why:"La OMS recomienda 150 a 300 minutos de actividad moderada por semana, más 2 sesiones de fuerza. El ejercicio tiene efectos moderados y consistentes sobre el ánimo, la ansiedad y la función ejecutiva.",
+    steps:["Empieza con 20 minutos de caminata rápida 5 días a la semana.","Fija día y hora como una reunión; súmale 2 sesiones de fuerza de 20 minutos."], refs:["bull","singh"]});
+
+  if(a.cafe>=2 || c("cafeTarde")==="si") add({p:3, t:"Ajusta la cafeína", why:`${a.cafe>=2?"Tomas 4 o más tazas al día, cerca o sobre el límite de 400 mg diarios considerado seguro para adultos. ":""}${c("cafeTarde")==="si"?"La cafeína tomada incluso 6 horas antes de dormir reduce de forma medible el sueño total.":""}`,
+    steps:["Última taza antes de las 14:00.","Si tomas más de 3 tazas, baja una cada semana para evitar dolor de cabeza por abstinencia."], refs:["drake","efsa"]});
+
+  if(a.alcohol>=2) add({p:2, t:"Reduce el consumo de alcohol", why:"Más de 7 tragos por semana aumenta el riesgo para la salud, empeora la calidad del sueño y la regulación emocional. La evidencia actual indica que no existe un nivel de consumo totalmente libre de riesgo.",
+    steps:["Define al menos 3 días a la semana sin alcohol.","Evita el alcohol 3 horas antes de dormir."], refs:["gbd"]});
+
+  if(c("pantalla")==="si" && a.sueno<=7) add({p:3, t:"Pantallas fuera de la cama", why:"El uso del celular en la cama retrasa la hora de dormir y mantiene activa la mente.",
+    steps:["Carga el teléfono fuera del dormitorio.","Usa un despertador simple en lugar del celular."], refs:["watson"]});
+
+  if(a.who<=50 && a.phq<10) add({p:2, t:"Recupera actividades que te den energía", why:`Tu índice de bienestar WHO‑5 es ${a.who} de 100. Bajo 50 indica un bienestar reducido que conviene atender, aunque no haya síntomas de depresión importantes.`,
+    steps:["Haz una lista de 10 actividades que te daban energía y agenda 2 esta semana.","Revisa el resultado en 2 semanas repitiendo el WHO‑5."], refs:["topp","ekers"]});
+
+  if(a.tec) add({p:3, t:"Menciona el golpe en la cabeza a tu médico", why:"Un traumatismo craneal con pérdida de conciencia es un antecedente que el profesional debe conocer al interpretar síntomas de atención o memoria.",
+    steps:["Indica fecha aproximada, duración de la pérdida de conciencia y si hubo estudios en ese momento."], refs:["kooij"]});
+
+  add({p:4, t:"Mide tu avance", why:"Los cambios de hábitos se notan en semanas. Medir con los mismos instrumentos permite ver si las acciones están funcionando.",
+    steps:["Repite esta autoevaluación en 6 semanas, en un horario similar y descansado.","Compara los puntajes y comparte ambos informes con el profesional que te atienda."], refs:["kroenke","topp"]});
+
+  function c(k){ return S.ctx[k]; }
+  return R.sort((x,y)=>x.p-y.p);
+}
+
+function buildHyp(a){
+  const H = [];
+  if(a.asrsPos){
+    const fuerte = a.infancia==="si" && a.nctx>=2;
+    H.push({w: fuerte?95:80, lvl:"alto", tag: fuerte?"Hipótesis principal · a confirmar":"Hipótesis a explorar",
+      t:"Perfil compatible con déficit atencional (TDAH) del adulto",
+      d:`Parte A de la ASRS positiva (${a.asrsA}/6) y ${a.asrsB} de 12 ítems de la Parte B en zona de riesgo. ${a.infancia==="si"?"Las dificultades estarían presentes desde antes de los 12 años":a.infancia==="no"?"Indicas que las dificultades no estaban en la infancia, lo que hace menos probable un TDAH y obliga a buscar otras causas":"No está claro si las dificultades existían en la infancia"}${a.nctx>=2?` y afectan ${a.nctx} áreas de tu vida`:""}. ${(a.sueno<=6||a.phq>=10||a.gad>=10)?"Ojo: la falta de sueño, el ánimo bajo o la ansiedad pueden producir síntomas parecidos; el diagnóstico debe descartarlos.":""} Un tamizaje positivo no es un diagnóstico.`});
+  } else if(a.inat>=20 || a.hip>=20){
+    H.push({w:50, lvl:"med", tag:"A observar", t:"Síntomas atencionales o de inquietud por debajo del umbral de tamizaje",
+      d:`La Parte A de la ASRS no alcanzó el umbral (${a.asrsA}/6), pero algunos ítems puntúan alto (inatención ${a.inat}/36, hiperactividad‑impulsividad ${a.hip}/36). Vale la pena observar si se relacionan con sueño, estrés o carga laboral.`});
+  }
+  if(a.sueno<=6) H.push({w:a.sueno<=5?90:70, lvl:"alto", tag:"Factor agravante relevante", t:"Sueño insuficiente",
+    d:`Con ${a.sueno<=5?"5 horas o menos":"6 horas"} de sueño en días laborales, la atención sostenida y el control inhibitorio se deterioran de forma acumulativa. ${a.posterga>=2?"La postergación del sueño sugiere que la noche se usa como tiempo propio a costa del descanso.":""}`});
+  if(a.apnea) H.push({w:75, lvl:"alto", tag:"A descartar médicamente", t:"Posible trastorno respiratorio del sueño",
+    d:"Ronquidos, pausas observadas o somnolencia diurna. Puede afectar la concentración aunque se duerman suficientes horas."});
+  if(a.phq>=10) H.push({w:85, lvl: a.phq>=15?"crit":"alto", tag:"Requiere evaluación", t:`Síntomas depresivos de intensidad ${a.phqSev.toLowerCase()}`,
+    d:`PHQ‑9 de ${a.phq}/27. El ánimo bajo reduce la energía, la concentración y la capacidad de sostener metas.`});
+  else if(a.phq>=5) H.push({w:40, lvl:"med", tag:"Factor contribuyente", t:"Síntomas depresivos leves", d:`PHQ‑9 de ${a.phq}/27. Conviene vigilar su evolución.`});
+  if(a.gad>=10) H.push({w:80, lvl:a.gad>=15?"crit":"alto", tag:"Requiere evaluación", t:`Ansiedad de intensidad ${a.gadSev.toLowerCase()}`,
+    d:`GAD‑7 de ${a.gad}/21. La preocupación constante consume recursos atencionales y dificulta desconectarse.`});
+  else if(a.gad>=5) H.push({w:38, lvl:"med", tag:"Factor contribuyente", t:"Ansiedad leve", d:`GAD‑7 de ${a.gad}/21.`});
+  if(a.estres>=6 || a.descon===0) H.push({w:a.estres>=8?65:45, lvl:"med", tag:"Factor contribuyente", t:"Estrés sostenido y baja desconexión",
+    d:`Estrés de ${a.estres}/10${a.descon===0?" y dificultad para desconectarse del trabajo":""}. El estrés crónico agota las reservas de autorregulación y deja poca energía para proyectos propios.`});
+  if(a.proy>=3) H.push({w:55, lvl:"med", tag:"Patrón conductual a trabajar", t:"Exceso de frentes abiertos",
+    d:`${a.proy} proyectos personales en paralelo. Con tantos frentes, siempre aparece uno más atractivo que el actual, y el ciclo de empezar y abandonar se mantiene con o sin TDAH.`});
+  if(a.memNivel==="alto") H.push({w:60, lvl:"alto", tag:"A confirmar con pruebas formales", t:"Recuerdo verbal diferido bajo lo esperado",
+    d:`Recordaste ${a.memD} de 10 palabras${a.delay?` tras ${a.delay} minutos`:""}. Puede reflejar fallas de atención al aprender, cansancio o una dificultad de memoria que debe estudiarse.`});
+  if(a.inicioReciente) H.push({w:58, lvl:"alto", tag:"A estudiar", t:"Cambio cognitivo reciente",
+    d:"Notas un empeoramiento claro en los últimos 2 años. Un cambio reciente tiene causas distintas a un patrón de toda la vida."});
+  return H.sort((x,y)=>y.w-x.w);
+}
+
+function buildStrengths(a){
+  const F = [];
+  if(a.memD>=8) F.push(`Memoria verbal conservada: recordaste ${a.memD} de 10 palabras después de ${a.delay||"varios"} minutos.`);
+  if(a.flu>=20 && a.fluVoz) F.push(`Fluidez semántica sobre lo esperado: ${a.flu} animales en un minuto.`);
+  else if(a.flu>=18) F.push(`Buena fluidez semántica: ${a.flu} animales en un minuto${a.fluVoz?"":" pese a escribirlos"}.`);
+  if(a.ejer>=3) F.push("Cumples la recomendación de actividad física de la OMS. Mantener una rutina así demuestra que puedes sostener hábitos cuando están bien anclados.");
+  if(a.phq<5) F.push("Sin síntomas depresivos relevantes en las últimas 2 semanas.");
+  if(a.gad<5) F.push("Sin síntomas de ansiedad relevantes en las últimas 2 semanas.");
+  if(a.who>50) F.push(`Bienestar general adecuado (WHO‑5: ${a.who}/100).`);
+  if(a.alcohol<=1) F.push("Consumo de alcohol bajo o nulo.");
+  if(a.sueno>=7) F.push("Duermes las horas recomendadas para un adulto.");
+  if(a.descon===2) F.push("Logras desconectarte del trabajo, un factor protector frente al agotamiento.");
+  F.push("Completaste una autoevaluación de más de 20 minutos con tareas de atención sostenida: buscar entender tu funcionamiento es el primer paso para mejorarlo.");
+  return F;
+}
+
+function buildPlan(recs){
+  const act = recs.filter(r=>r.p>=1 && r.p<=3);
+  const cons = act.filter(r=>/Consulta|Evaluación|Control|descartar/i.test(r.t));
+  const hab = act.filter(r=>!cons.includes(r));
+  const W = [];
+  W.push(cons.length ? `Pide hora para: ${cons.map(r=>r.t.replace(/^(Consulta médica|Consulta|Evaluación formal de|Evaluación|Control médico) (para |por |de )?/i,"").toLowerCase()).join("; ")}. ${hab[0]?"Empieza: "+hab[0].steps[0]:""}` : (hab[0]?`${hab[0].t}: ${hab[0].steps[0]}`:"Mantén tus rutinas actuales."));
+  W.push(hab[1]?`${hab[1].t}: ${hab[1].steps[0]}`:(hab[0]&&hab[0].steps[1]?hab[0].steps[1]:"Consolida lo de la semana 1."));
+  W.push(hab[2]?`${hab[2].t}: ${hab[2].steps[0]}`:(hab[0]&&hab[0].steps[2]?hab[0].steps[2]:"Consolida lo de las semanas anteriores."));
+  W.push("Revisa qué funcionó, ajusta lo que no y agenda la repetición de esta evaluación para la semana 6.");
+  return W;
+}
+
+/* ===================== Informe ===================== */
+function bar(label, val, max, lvl, note, fmtv){
+  const pct = Math.max(2, Math.round(val/max*100));
+  return `<div class="bar"><div class="bar-head"><b>${label}</b><span>${fmtv||`${val} / ${max}`}</span></div>
+    <div class="track" role="img" aria-label="${label}: ${val} de ${max}"><div class="fill ${lvl}" style="width:${pct}%"></div></div>${note?`<small>${note}</small>`:""}</div>`;
+}
+const lvlPhq = v=>v>=15?"crit":v>=10?"alto":v>=5?"med":"ok";
+const lvlGad = v=>v>=15?"crit":v>=10?"alto":v>=5?"med":"ok";
+const lvlWho = v=>v<=28?"alto":v<=50?"med":"ok";
+const pillTxt = {ok:"Dentro de lo esperado", med:"Leve / a observar", alto:"Elevado", crit:"Alto"};
+
+V.informe = ()=>{
+  const a = analyze(), recs = buildRecs(a), hyp = buildHyp(a), fort = buildStrengths(a), plan = buildPlan(recs);
+  const p = S.perfil;
+  const fecha = new Date(p.fecha+"T12:00:00").toLocaleDateString("es-CL",{day:"numeric",month:"long",year:"numeric"});
+  const usedRefs = new Set(["kessler","kroenke","spitzer","topp","watson","tombaugh"]); recs.forEach(r=>r.refs.forEach(k=>usedRefs.add(k)));
+  const refList = [...usedRefs];
+  const sueLvl = a.sueno<=5?"alto":a.sueno===6?"med":"ok";
+  const asrsLvl = a.asrsPos?"alto":(a.inat>=20||a.hip>=20)?"med":"ok";
+
+  const sintesis = [];
+  if(a.asrsPos) sintesis.push(`El tamizaje de atención de la OMS (ASRS) resultó <strong>positivo</strong>: tus respuestas son muy compatibles con síntomas de TDAH del adulto y justifican una evaluación clínica.`);
+  else sintesis.push(`El tamizaje de atención de la OMS (ASRS) resultó <strong>negativo</strong> (${a.asrsA}/6 en la Parte A).`);
+  if(a.sueno<=6) sintesis.push(`Duermes menos de lo recomendado, lo que por sí solo afecta la concentración y el autocontrol.`);
+  if(a.phq>=10||a.gad>=10) sintesis.push(`Aparecen síntomas emocionales${a.phq>=10?` de ánimo (PHQ‑9: ${a.phq})`:""}${a.phq>=10&&a.gad>=10?" y":""}${a.gad>=10?` de ansiedad (GAD‑7: ${a.gad})`:""} que conviene evaluar con un profesional.`);
+  else sintesis.push(`El ánimo y la ansiedad están ${a.phq>=5||a.gad>=5?"en rango leve":"en rango mínimo"}.`);
+  if(a.memNivel!=="alto" && a.fluNivel!=="alto") sintesis.push(`La memoria verbal y la fluidez del lenguaje están conservadas, lo que orienta a que la dificultad está en la <strong>autorregulación</strong> más que en la capacidad intelectual.`);
+
+  return `
+${S.ejemplo?`<div class="notice noprint"><p><strong>Estás viendo un informe de ejemplo con datos ficticios.</strong> Para obtener tu propio informe, vuelve al inicio y completa la evaluación.</p><div class="btns" style="margin-top:8px"><button type="button" class="btn" id="salir-ejemplo">Empezar mi evaluación</button></div></div>`:""}
+<section class="sheet" id="informe">
+  ${S.ejemplo?`<span class="example-flag">Ejemplo · datos ficticios</span>`:""}
+  <div class="eyebrow">Informe referencial · autoevaluación orientativa</div>
+  <h1>Informe de funciones ejecutivas, ánimo y sueño</h1>
+  <dl class="ficha">
+    <div><dt>Evaluado</dt><dd>${esc(p.nombre||"Sin nombre")}</dd></div>
+    <div><dt>Edad</dt><dd>${esc(p.edad)} años</dd></div>
+    ${p.ocupacion?`<div><dt>Ocupación</dt><dd>${esc(p.ocupacion)}</dd></div>`:""}
+    <div><dt>Fecha</dt><dd>${fecha}</dd></div>
+    <div><dt>Modalidad</dt><dd>Autoaplicada en línea</dd></div>
+  </dl>
+  <div class="notice" style="margin-top:16px"><p><strong>Documento referencial.</strong> Este informe es una orientación basada en instrumentos de tamizaje validados. <strong>No constituye un diagnóstico y no reemplaza la consulta médica ni la evaluación de un profesional de la salud.</strong> Su propósito es ordenar la información, orientar los siguientes pasos y servir de apoyo en una consulta.</p></div>
+</section>
+
+${a.suicida?`<section class="sheet">${CRISIS_HTML}</section>`:""}
+
+${p.motivo?`<section class="sheet"><h2><span class="sec">1</span>Motivo de consulta</h2><p style="font-family:var(--display);font-style:italic;font-size:1.12rem;border-left:2px solid var(--accent);padding-left:14px">${esc(p.motivo)}</p></section>`:""}
+
+<section class="sheet">
+  <h2><span class="sec">2</span>Síntesis</h2>
+  <p>${sintesis.join(" ")}</p>
+  <div class="tiles" style="margin-top:14px">
+    <div class="tile ${asrsLvl}"><span class="k">Atención (ASRS)</span><span class="v">${a.asrsPos?"Tamizaje positivo":"Tamizaje negativo"}</span></div>
+    <div class="tile ${lvlPhq(a.phq)}"><span class="k">Ánimo (PHQ‑9)</span><span class="v">${a.phqSev}</span></div>
+    <div class="tile ${lvlGad(a.gad)}"><span class="k">Ansiedad (GAD‑7)</span><span class="v">${a.gadSev}</span></div>
+    <div class="tile ${lvlWho(a.who)}"><span class="k">Bienestar (WHO‑5)</span><span class="v">${a.whoSev}</span></div>
+    <div class="tile ${sueLvl}"><span class="k">Sueño</span><span class="v">${a.sueno<=5?"≤ 5 h":a.sueno>=9?"≥ 9 h":a.sueno+" h"} por noche</span></div>
+    <div class="tile ${a.memNivel}"><span class="k">Memoria verbal</span><span class="v">${a.memD} / 10</span></div>
+  </div>
+</section>
+
+<section class="sheet">
+  <h2><span class="sec">3</span>Resultados por instrumento</h2>
+  <div class="tablebox"><table>
+    <thead><tr><th>Instrumento</th><th>Resultado</th><th>Lectura</th></tr></thead>
+    <tbody>
+      <tr><td>ASRS v1.1, Parte A (OMS)</td><td class="num">${a.asrsA} / 6</td><td><span class="pill ${a.asrsPos?"alto":"ok"}">${a.asrsPos?"Positivo":"Negativo"}</span> Umbral: 4 o más respuestas en zona de riesgo.</td></tr>
+      <tr><td>ASRS v1.1, Parte B</td><td class="num">${a.asrsB} / 12</td><td>Ítems complementarios en zona de riesgo. No tiene punto de corte; orienta la entrevista clínica.</td></tr>
+      <tr><td>PHQ‑9 (ánimo)</td><td class="num">${a.phq} / 27</td><td><span class="pill ${lvlPhq(a.phq)}">${a.phqSev}</span> Cortes: 5 leve, 10 moderado, 15 moderadamente severo, 20 severo.${a.suicida?` <strong>Ítem 9 positivo.</strong>`:""}</td></tr>
+      <tr><td>GAD‑7 (ansiedad)</td><td class="num">${a.gad} / 21</td><td><span class="pill ${lvlGad(a.gad)}">${a.gadSev}</span> Cortes: 5 leve, 10 moderado, 15 severo.</td></tr>
+      <tr><td>WHO‑5 (bienestar)</td><td class="num">${a.who} / 100</td><td><span class="pill ${lvlWho(a.who)}">${a.whoSev}</span> 50 o menos: bienestar reducido; 28 o menos: sugiere evaluar depresión.</td></tr>
+      <tr><td>Recuerdo inmediato de 10 palabras</td><td class="num">${a.memI} / 10</td><td>Una sola exposición de 60 segundos.</td></tr>
+      <tr><td>Recuerdo diferido${a.delay?` (~${a.delay} min)`:""}</td><td class="num">${a.memD} / 10</td><td><span class="pill ${a.memNivel}">${a.memNivel==="ok"?"Conservado":a.memNivel==="med"?"En rango":"Bajo lo esperado"}</span> Retención ${a.ret}%.${a.memFaltan.length&&a.memFaltan.length<=4?` Omitió: ${a.memFaltan.join(", ")}.`:""}${a.memIntr?` ${a.memIntr} palabra(s) no pertenecían a la lista.`:""}</td></tr>
+      <tr><td>Fluidez semántica: animales, 1 min</td><td class="num">${a.flu}</td><td><span class="pill ${a.fluVoz?a.fluNivel:(a.fluNivel==="alto"?"med":a.fluNivel)}">${a.fluNivel==="ok"?"En o sobre lo esperado":a.fluNivel==="med"?"Rango bajo‑normal":(a.fluVoz?"Bajo lo esperado":"Interpretar con cautela")}</span> ${a.fluVoz?"Respuesta oral.":"Respuesta escrita: suele dar menos palabras que la oral."} Referencia aproximada en adultos: 18 a 22; menos de 15 se considera bajo.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="small muted" style="margin-top:10px">Las referencias de las tareas de memoria y fluidez son aproximadas y no corresponden a normas chilenas. Los cuestionarios son instrumentos de tamizaje, no de diagnóstico.</p>
+
+  <h3 style="margin-top:20px;margin-bottom:12px">Perfil por dominio</h3>
+  <div class="bars">
+    ${bar("Inatención (ASRS)", a.inat, 36, a.inat>=24?"alto":a.inat>=18?"med":"ok", "Terminar, organizar, recordar, sostener la atención.")}
+    ${bar("Hiperactividad e impulsividad (ASRS)", a.hip, 36, a.hip>=24?"alto":a.hip>=18?"med":"ok", "Inquietud, dificultad para relajarse, interrumpir, esperar turnos.")}
+    ${bar("Síntomas de ánimo (PHQ‑9)", a.phq, 27, lvlPhq(a.phq))}
+    ${bar("Síntomas de ansiedad (GAD‑7)", a.gad, 21, lvlGad(a.gad))}
+    ${bar("Bienestar (WHO‑5, más alto es mejor)", a.who, 100, lvlWho(a.who))}
+    ${bar("Recuerdo verbal diferido", a.memD, 10, a.memNivel)}
+    ${bar("Estrés percibido", a.estres, 10, a.estres>=8?"alto":a.estres>=6?"med":"ok")}
+  </div>
+</section>
+
+<section class="sheet">
+  <h2><span class="sec">4</span>Áreas a explorar</h2>
+  <p>Ordenadas por el peso que tienen en tus datos. Son hipótesis para orientar una evaluación profesional, no conclusiones.</p>
+  <div class="hyp">${hyp.length?hyp.map(h=>`<article><div class="weight" style="color:var(--${h.lvl==="med"?"accent":h.lvl==="crit"?"crit":"warn"})">${h.tag}</div><h3>${h.t}</h3><p>${h.d}</p></article>`).join(""):`<article><h3>Sin áreas de alerta relevantes</h3><p>Tus respuestas no muestran puntajes elevados en los instrumentos aplicados. Si aun así notas dificultades, una consulta puede ayudar a precisarlas.</p></article>`}</div>
+</section>
+
+<section class="sheet">
+  <h2><span class="sec">5</span>Fortalezas</h2>
+  <ul>${fort.map(f=>`<li>${f}</li>`).join("")}</ul>
+</section>
+
+<section class="sheet">
+  <h2><span class="sec">6</span>Recomendaciones</h2>
+  <p>Ordenadas por prioridad. Cada una indica por qué aplica a tu caso, qué hacer y en qué evidencia se apoya.</p>
+  <ol class="recs">${recs.map(r=>`<li><div>
+    <div class="meta"><h3 style="margin:0">${r.t}</h3><span class="pill ${r.p===0?"crit":r.p===1?"alto":r.p===2?"med":"ok"}">${["Urgente","Prioridad alta","Prioridad media","Complementaria","Seguimiento"][r.p]}</span></div>
+    <p style="margin:0">${r.why}</p>
+    <ul>${r.steps.map(s=>`<li>${s}</li>`).join("")}</ul>
+    <div class="ev">Evidencia: ${r.refs.map(k=>esc(REF[k][0].split(". (")[0].split(",")[0])+" ("+(REF[k][0].match(/\((\d{4})\)/)||[,""])[1]+")").join("; ")}</div>
+  </div></li>`).join("")}</ol>
+</section>
+
+<section class="sheet">
+  <h2><span class="sec">7</span>Plan de 4 semanas</h2>
+  <div class="weeks">${plan.map((w,i)=>`<div><b>Semana ${i+1}</b>${w}</div>`).join("")}</div>
+</section>
+
+<section class="sheet">
+  <h2><span class="sec">8</span>Cuándo consultar sin esperar</h2>
+  <ul>
+    <li>Pensamientos de muerte o de hacerte daño: <strong>*4141</strong> o urgencias, el mismo día.</li>
+    <li>Quedarte dormido al conducir u operar maquinaria.</li>
+    <li>Pérdida de memoria que empeora mes a mes, desorientación o dificultad nueva para hablar o encontrar palabras.</li>
+    <li>Síntomas que te impiden trabajar o sostener tus relaciones.</li>
+  </ul>
+</section>
+
+<section class="sheet">
+  <h2><span class="sec">9</span>Limitaciones</h2>
+  <ul>
+    <li>Autoevaluación sin supervisión profesional ni información de terceros.</li>
+    <li>Los cuestionarios son de tamizaje: detectan probabilidad, no confirman diagnósticos. Pueden dar falsos positivos y falsos negativos.</li>
+    <li>Las tareas de memoria y fluidez son breves, autoadministradas y no usan normas chilenas.</li>
+    <li>Las respuestas reflejan el estado actual, que puede variar con el sueño, el estrés o la salud del día.</li>
+  </ul>
+</section>
+
+<section class="sheet">
+  <h2><span class="sec">10</span>Referencias científicas</h2>
+  <ol class="refs">${refList.map(k=>`<li>${esc(REF[k][0])} <a href="${pubmed(k)}" target="_blank" rel="noopener">Buscar en PubMed</a></li>`).join("")}</ol>
+  <p class="firma">Informe generado automáticamente por Mapa Ejecutivo a partir de las respuestas del evaluado. Los instrumentos ASRS v1.1 (OMS), PHQ‑9, GAD‑7 y WHO‑5 son de uso libre para fines clínicos y de tamizaje. Este documento es referencial y no reemplaza la evaluación de un profesional de la salud.</p>
+</section>
+
+<section class="sheet noprint">
+  <div class="btns">
+    <button type="button" class="btn" id="copiar">Copiar informe</button>
+    <button type="button" class="btn ghost" id="imprimir" hidden>Imprimir o guardar PDF</button>
+    <button type="button" class="btn quiet" id="editar">Revisar respuestas</button>
+    <span class="small muted" id="copy-msg" role="status"></span>
+  </div>
+</section>`;
+};
+V.informe.bind = ()=>{
+  const sx = $("#salir-ejemplo"); if(sx) sx.onclick = ()=>{ S = blank(); save(); go(0); };
+  $("#editar").onclick = ()=>go(0);
+  let framed = true; try{ framed = window.self !== window.top; }catch(e){}
+  if(!framed){ const b=$("#imprimir"); b.hidden=false; b.onclick=()=>window.print(); }
+  $("#copiar").onclick = ()=>{
+    const txt = $("#view").innerText.replace(/\n{3,}/g,"\n\n").replace(/Copiar informe[\s\S]*$/,"").trim();
+    const done = m=>$("#copy-msg").textContent=m;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(()=>done("Informe copiado. Pégalo en un correo o documento."),()=>fallback());
+    } else fallback();
+    function fallback(){
+      const r = document.createRange(); r.selectNodeContents($("#informe").parentNode); const s=getSelection(); s.removeAllRanges(); s.addRange(r);
+      done("Texto seleccionado. Usa Ctrl+C o Copiar.");
+    }
+  };
+};
+
+/* ===================== Ejemplo ficticio ===================== */
+function ejemplo(){
+  const e = blank();
+  e.ejemplo = true;
+  e.perfil = {nombre:"Paciente de ejemplo", edad:"51", ocupacion:"Jefe de planta industrial", fecha:hoy(), acepta:true, motivo:"Sé lo que debo hacer y quiero hacerlo, pero siempre me quedo a mitad de camino."};
+  e.asrs = [4,3,3,4,2,3, 2,3,2,3,3,2,3,3,2,3,2,2];
+  e.phq  = [1,1,2,1,0,1,1,0,0];
+  e.gad  = [1,1,2,2,1,1,0];
+  e.who5 = [3,2,3,1,4];
+  e.ctx = {sueno:"5", posterga:"3", ronca:"ns", pausas:"ns", somno:"1", ejercicio:"4", alcohol:"1", cafe:"1", cafeTarde:"si", pantalla:"si", desconexion:"0", infancia:"si", inicio:"no", tec:"no", estres:6, proyectos:5, contextos:["Trabajo","Hogar y tareas domésticas","Estudios o cursos","Proyectos personales"]};
+  e.flu = {modo:"voz", texto:"", n:25, hecho:true};
+  e.mem = {visto:true, inm:"caballo, guitarra, puente, camisa, nube, tren, martillo", dif:"caballo guitarra puente camisa volcán cuchara nube martillo tren", tA:Date.now()-22*60000, tR:Date.now()};
+  e.paso = 9; e.max = 9;
+  return e;
+}
+
+/* ===================== Render ===================== */
+function render(){
+  renderRail();
+  const st = STEPS[S.paso];
+  $("#view").innerHTML = V[st.id]();
+  if(V[st.id].bind) V[st.id].bind();
+}
+render();
+})();
+</script>
+<!-- pwa:start -->
+<script>
+/* Instalación como app (PWA). Solo actúa cuando la página se abre directamente, no dentro de un marco. */
+(function(){
+  var framed = true; try{ framed = window.self !== window.top; }catch(e){}
+  if(framed) return;
+  if("serviceWorker" in navigator && (location.protocol==="https:" || location.hostname==="localhost" || location.hostname==="127.0.0.1")){
+    window.addEventListener("load", function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); });
+  }
+  var standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  var dismissed = false; try{ dismissed = localStorage.getItem("mapa-install-off")==="1"; }catch(e){}
+  if(standalone || dismissed) return;
+  var box = document.getElementById("install"), btn = document.getElementById("install-btn"), txt = document.getElementById("install-txt");
+  document.getElementById("install-close").onclick = function(){ box.hidden = true; try{ localStorage.setItem("mapa-install-off","1"); }catch(e){} };
+  var deferred = null;
+  window.addEventListener("beforeinstallprompt", function(e){
+    e.preventDefault(); deferred = e; btn.hidden = false; box.hidden = false;
+  });
+  btn.onclick = function(){
+    if(!deferred) return;
+    deferred.prompt();
+    deferred.userChoice.then(function(){ deferred = null; box.hidden = true; });
+  };
+  window.addEventListener("appinstalled", function(){ box.hidden = true; });
+  var ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+  if(ios){
+    txt.innerHTML = "Para instalar en iPhone: toca <strong>Compartir</strong> en Safari y luego <strong>Agregar a pantalla de inicio</strong>.";
+    box.hidden = false;
+  }
+})();
+</script>
+<!-- pwa:end -->
+</body>
+</html>
